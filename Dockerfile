@@ -17,3 +17,4 @@ COPY --from=builder /workspace/k8s-node-labeler /
 RUN chmod +x /k8s-node-labeler
 RUN adduser -DH runner
 USER runner
+ENTRYPOINT ["./k8s-node-labeler"]

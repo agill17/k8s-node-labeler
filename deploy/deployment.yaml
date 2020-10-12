@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-node-labeler
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: k8s-node-labeler
+  template:
+    metadata:
+      labels:
+        app: k8s-node-labeler
+    spec:
+      serviceAccountName: k8s-node-labeler
+      volumes:
+        - name: conf-file
+          configMap:
+            name: node-label-conf
+      containers:
+        - name: k8s-node-labeler
+          image: agill17/k8s-node-labeler:0.2.0
+          args:
+            - --conf-file=/tmp/node-label-conf.yaml
+          volumeMounts:
+            - mountPath: /tmp
+              name: conf-file
+          env:
+            - name: RESYNC_PERIOD
+              value: "1" # minutes
+            - name: DEV_MODE
+              value: "true" # colorful logs

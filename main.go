@@ -2,6 +2,7 @@ package main
 
 import (
 	"agill.apps.node-labeler/pkg"
+	"flag"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -16,25 +17,37 @@ var (
 	labelsToAdd = map[string]string{"foo": "bar"}
 )
 
-const (
-	EnvVarResyncPeriod = "RESYNC_PERIOD"
-	EnvVarDevMode = "DEV_MODE"
-)
+
 
 func init() {
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	if _, ok := os.LookupEnv(EnvVarDevMode); ok {
+	if _, ok := os.LookupEnv(pkg.EnvVarDevMode); ok {
 		logger.SetFormatter(&logrus.TextFormatter{ForceColors: true})
 	}
 }
 
 
 func main() {
+	var configFile string
+	flag.StringVar(&configFile, "conf-file", "", "Config yaml file that defines desired node labels")
+	flag.Parse()
 
-	// TODO: take input that defines set of labels to add to node
-	// TODO: take input to exclude nodes with k:v as labels
+	// TODO: swap to cobra for required flags , but in the meantime this hack works
+	if configFile == "" {
+		logger.Errorf("--conf-file flag is required.")
+		os.Exit(1)
+	}
+
+	if _, errCheckingFile := os.Stat(configFile); errCheckingFile != nil {
+		logger.Errorf("Failed to check for config file: %v", errCheckingFile)
+		os.Exit(1)
+	}
 
 	client := pkg.GetClient(logger)
+	nodeReconciler := pkg.ReconcileNodeLabel{
+		Logger:    logger,
+		ClientSet: client,
+	}
 
 	// instantiate sharedInformerFactory
 	sharedInformerFactory := informers.NewSharedInformerFactory(client, getResyncPeriod())
@@ -42,20 +55,15 @@ func main() {
 	// create informer for specific resource
 	nodeInformer := sharedInformerFactory.Core().V1().Nodes()
 
-	nodeReconciler := pkg.ReconcileNodeLabel{
-		Logger:    logger,
-		ClientSet: client,
-	}
-
 	// register event handlers ( we only care about add and update events )
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			//TODO: if err -> requeue
-			nodeReconciler.ReconcileNode(obj, labelsToAdd)
+			nodeReconciler.ReconcileNode(obj, configFile)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			//TODO: if err -> requeue
-			nodeReconciler.ReconcileNode(newObj, labelsToAdd)
+			nodeReconciler.ReconcileNode(newObj, configFile)
 		},
 	})
 
@@ -78,7 +86,7 @@ func main() {
 // unit -> minutes
 func getResyncPeriod() time.Duration {
 	syncPeriodInStr := defaultRsyncPeriod
-	if val, ok := os.LookupEnv(EnvVarResyncPeriod); ok {
+	if val, ok := os.LookupEnv(pkg.EnvVarResyncPeriod); ok {
 		syncPeriodInStr = val
 	}
 	syncPeriod, errCastingToInt := strconv.Atoi(syncPeriodInStr)

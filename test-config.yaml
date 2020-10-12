@@ -1,0 +1,4 @@
+desiredLabels:
+  foo: bar
+  label-key: label-value
+  what: wait

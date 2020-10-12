@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-label-conf
+data:
+  node-label-conf.yaml: |
+    desiredLabels:
+      foo: bar
+      label-key: label-value
+      what: wait
+      another: label
