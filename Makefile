@@ -6,6 +6,6 @@ build:
 	docker build . -t ${IMG}:${VERSION}
 
 push:
-	docker push -t ${IMG}:${VERSION}
+	docker push ${IMG}:${VERSION}
 
 all: build push
